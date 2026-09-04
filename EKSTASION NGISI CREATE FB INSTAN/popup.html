@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --bg-main: #130f1e;
+      --bg-card: #1c152e;
+      --bg-input: #271e3d;
+      --border-color: #3b2c5e;
+      --accent-purple: #9d4edd;
+      --accent-green: #00e676;
+      --text-main: #f3f0f7;
+      --text-muted: #a69cb8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100%;
+      min-width: 330px;
+      background: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      padding: 14px;
+      margin: 0;
+    }
+
+    .header-title {
+      margin: 0 0 12px 0;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .header-title span {
+      color: var(--accent-green);
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent-purple);
+      margin-top: 10px;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .badge {
+      background: rgba(0, 230, 118, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(0, 230, 118, 0.3);
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--bg-input);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px;
+      resize: vertical;
+      font-size: 11px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      outline: none;
+      white-space: pre;
+    }
+
+    textarea:focus {
+      border-color: var(--accent-purple);
+    }
+
+    .txt-phones {
+      height: 80px;
+    }
+
+    .txt-otps {
+      height: 110px;
+    }
+
+    .btn-action {
+      width: 100%;
+      border: none;
+      padding: 9px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+      cursor: pointer;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      transition: all 0.2s;
+    }
+
+    .btn-phone {
+      background: #7b2cbf;
+      color: #ffffff;
+    }
+
+    .btn-phone:hover {
+      background: #9d4edd;
+    }
+
+    .btn-otp {
+      background: var(--accent-green);
+      color: #0b2916;
+    }
+
+    .btn-otp:hover {
+      background: #39ff96;
+      box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+    }
+
+    .shortcut-tag {
+      font-size: 10px;
+      opacity: 0.8;
+    }
+
+    #status {
+      font-size: 11px;
+      text-align: center;
+      margin-top: 6px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="header-title">AUTO <span>REG & OTP FILLER</span></div>
+
+  <div class="section-title">
+    1. Antrean Nomor Telepon
+    <span class="badge" id="phoneCounter">0 Nomor</span>
+  </div>
+  <textarea id="phoneInputList" class="txt-phones" placeholder="Tempel nomor telepon di sini (1 nomor per baris)..."></textarea>
+  <button class="btn-action btn-phone" id="btnRunPhone">
+    ▶ Isi Form Pendaftaran <span class="shortcut-tag"></span>
+  </button>
+
+  <div class="section-title">
+    2. Format Pesan OTP Bot
+    <span class="badge" id="otpCounter">0 Siap</span>
+  </div>
+  <textarea id="otpRawList" class="txt-otps" placeholder="Tempel seluruh pesan SMS dari bot di sini..."></textarea>
+  <button class="btn-action btn-otp" id="btnRunOtp">
+    ▶ Isi Kode OTP <span class="shortcut-tag"></span>
+  </button>
+
+  <div id="status">Siap digunakan.</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
