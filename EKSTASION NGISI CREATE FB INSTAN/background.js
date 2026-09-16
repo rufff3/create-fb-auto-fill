@@ -222,7 +222,7 @@ async function injectRegistrationDataOnly(phoneNumber) {
     if (fnInput) setVal(fnInput, randomFirstName);
     if (lnInput) setVal(lnInput, randomLastName);
     if (emailInput) setVal(emailInput, phoneNumber);
-    if (passInput) setVal(passInput, "Harimau");
+    if (passInput) setVal(passInput, "kontol87");
 
     function triggerClick(el) {
       if (!el) return;
