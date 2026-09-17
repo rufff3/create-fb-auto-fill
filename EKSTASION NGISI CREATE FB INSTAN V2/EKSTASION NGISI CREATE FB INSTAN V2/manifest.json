@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "FB Auto Register & OTP Filler",
+  "version": "1.0",
+  "description": "Pengisian otomatis form pendaftaran Facebook dan OTP lintas tab secara instan.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "activeTab",
+    "sidePanel",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FB Register & OTP Manager"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "commands": {
+    "exec-phone-batch": {
+      "suggested_key": {
+        "default": "Alt+Shift+1",
+        "mac": "Alt+Shift+1"
+      },
+      "description": "Isi Form Pendaftaran Instan"
+    },
+    "exec-otp-batch": {
+      "suggested_key": {
+        "default": "Alt+Shift+2",
+        "mac": "Alt+Shift+2"
+      },
+      "description": "Isi OTP ke Tab yang Sesuai"
+    }
+  }
+}
