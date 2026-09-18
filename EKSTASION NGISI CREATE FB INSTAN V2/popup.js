@@ -8,6 +8,8 @@ const btnClickIdont = document.getElementById("btnClickIdont");
 const btnClickResend = document.getElementById("btnClickResend");
 const btnClickChangeNum = document.getElementById("btnClickChangeNum");
 const btnRefreshAll = document.getElementById("btnRefreshAll");
+const btnGoWeb = document.getElementById("btnGoWeb");
+const btnGoM = document.getElementById("btnGoM");
 const statusDiv = document.getElementById("status");
 
 function getCleanLines(textarea) {
@@ -106,4 +108,20 @@ btnClickChangeNum.addEventListener("click", () => {
 btnRefreshAll.addEventListener("click", () => {
   statusDiv.innerText = "⏳ Merefresh seluruh tab...";
   chrome.runtime.sendMessage({ action: "REFRESH_ALL_TABS" });
+});
+
+btnGoWeb.addEventListener("click", () => {
+  statusDiv.innerText = "⏳ Mengalihkan seluruh tab ke Facebook Web...";
+  chrome.runtime.sendMessage({
+    action: "NAVIGATE_ALL_TABS",
+    url: "https://www.facebook.com/reg/?entry_point=login"
+  });
+});
+
+btnGoM.addEventListener("click", () => {
+  statusDiv.innerText = "⏳ Mengalihkan seluruh tab ke Facebook Mobile...";
+  chrome.runtime.sendMessage({
+    action: "NAVIGATE_ALL_TABS",
+    url: "https://m.facebook.com/reg/?is_two_steps_login=0&cid=103&refsrc=deprecated&soft=hjk"
+  });
 });

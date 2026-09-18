@@ -152,18 +152,19 @@
 
     .bottom-refresh-area {
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
       align-items: center;
       margin-top: 12px;
       padding-top: 10px;
       border-top: 1px dashed var(--border-color);
+      gap: 8px;
     }
 
     .btn-refresh-tab {
       background: var(--bg-card);
       color: var(--text-muted);
       border: 1px solid var(--border-color);
-      padding: 7px 20px;
+      padding: 8px 14px;
       border-radius: 20px;
       font-weight: 600;
       font-size: 11px;
@@ -172,6 +173,7 @@
       align-items: center;
       gap: 6px;
       transition: all 0.2s ease;
+      flex-shrink: 0;
     }
 
     .btn-refresh-tab:hover {
@@ -179,6 +181,40 @@
       border-color: var(--accent-purple);
       color: #ffffff;
       box-shadow: 0 0 10px rgba(157, 78, 221, 0.25);
+    }
+
+    .nav-link-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .btn-nav-link {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-nav-link:hover {
+      background: var(--bg-input);
+      border-color: var(--accent-purple);
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(157, 78, 221, 0.25);
+    }
+
+    .btn-nav-link svg {
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -222,6 +258,20 @@
     <button class="btn-refresh-tab" id="btnRefreshAll">
       🔁 refresh all tab
     </button>
+    <div class="nav-link-group">
+      <button class="btn-nav-link" id="btnGoWeb">
+        go to web
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#1877F2">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        </svg>
+      </button>
+      <button class="btn-nav-link" id="btnGoM">
+        go to m
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#1877F2">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <script src="popup.js"></script>

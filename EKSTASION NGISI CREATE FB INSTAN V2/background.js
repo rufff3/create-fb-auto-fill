@@ -51,11 +51,12 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     refreshAllTargetTabs().then(sendResponse);
     return true;
   }
+  if (req.action === "NAVIGATE_ALL_TABS") {
+    navigateAllTabs(req.url).then(sendResponse);
+    return true;
+  }
 });
 
-// ==========================================================
-// 1. PENGISIAN FORM PENDAFTARAN PARALEL & INSTAN KE SEMUA TAB
-// ==========================================================
 async function executePhoneBatch() {
   const storage = await chrome.storage.local.get(["rawPhones", "tabPhoneMap"]);
   const rawPhones = storage.rawPhones || "";
@@ -79,11 +80,9 @@ async function executePhoneBatch() {
 
     const targetPhone = phoneList.shift();
     const cleanDigits = targetPhone.replace(/\D/g, "");
-    
-    // Simpan digit angka murni untuk sinkronisasi pemetaan OTP
+
     tabPhoneMap[tab.id] = cleanDigits;
 
-    // Nomor yang disuntikkan ke kolom input diawali dengan tanda +
     const phoneToInject = "+" + cleanDigits;
 
     const p = chrome.scripting.executeScript({
@@ -202,7 +201,7 @@ async function injectRegistrationDataOnly(phoneNumber) {
     if (emailInput) setVal(emailInput, phoneNumber);
     if (passInput) {
       passInput.type = "text";
-      setVal(passInput, "kontol87");
+      setVal(passInput, "Harimau");
     }
 
     const dayArr = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"];
@@ -238,13 +237,13 @@ async function injectRegistrationDataOnly(phoneNumber) {
     if (fnInput) setVal(fnInput, randomFirstName);
     if (lnInput) setVal(lnInput, randomLastName);
     if (emailInput) setVal(emailInput, phoneNumber);
-    if (passInput) setVal(passInput, "kontol87");
+    if (passInput) setVal(passInput, "Harimau");
 
     function triggerClick(el) {
       if (!el) return;
       let target = el;
       for (let i = 0; i < 3 && target; i++) {
-        const rk = Object.keys(target).find(k => k.startsWith("__reactProps$") || k.startsWith("__reactEventHandlers$"));
+        const rk = Object.keys(target).find(k => k.startsWith("__reactProps") || k.startsWith("__reactEventHandlers"));
         if (rk && typeof target[rk]?.onClick === "function") {
           try { target[rk].onClick({ preventDefault: () => {}, stopPropagation: () => {}, target: el, currentTarget: target }); } catch(e) {}
         }
@@ -281,9 +280,6 @@ async function injectRegistrationDataOnly(phoneNumber) {
   }
 }
 
-// ==========================================================
-// 2. PENGISIAN KODE OTP SECARA SIMULTAN KE TAB SESUAI MAPPING
-// ==========================================================
 async function executeOtpBatch() {
   const storage = await chrome.storage.local.get(["rawOtps", "tabPhoneMap"]);
   const rawOtps = storage.rawOtps || "";
@@ -366,9 +362,6 @@ function injectOtpFillOnly(otpCode) {
   }
 }
 
-// ==========================================================
-// 3. PENEKANAN TOMBOL NAVIGASI / AKSI SIMULTAN KE SEMUA TAB
-// ==========================================================
 async function executeActionBatch(actionType) {
   const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
   const targetTabs = currentWindowTabs.filter(t => 
@@ -517,9 +510,6 @@ function injectClickAction(actionType) {
   }
 }
 
-// ==========================================================
-// 4. REFRESH SIMULTAN KE SELURUH TAB TARGET
-// ==========================================================
 async function refreshAllTargetTabs() {
   const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
   const targetTabs = currentWindowTabs.filter(t => 
@@ -533,4 +523,19 @@ async function refreshAllTargetTabs() {
   });
 
   await Promise.all(reloadPromises);
+}
+
+async function navigateAllTabs(targetUrl) {
+  const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
+  const targetTabs = currentWindowTabs.filter(t => 
+    t.id && (!t.url || (!t.url.startsWith("chrome://") && !t.url.startsWith("chrome-extension://") && !t.url.startsWith("devtools://")))
+  );
+
+  if (targetTabs.length === 0) return;
+
+  const navPromises = targetTabs.map(tab => {
+    return chrome.tabs.update(tab.id, { url: targetUrl }).catch(err => console.warn(`Gagal alihkan Tab ${tab.id}:`, err));
+  });
+
+  await Promise.all(navPromises);
 }
