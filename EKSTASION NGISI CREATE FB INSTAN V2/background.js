@@ -201,7 +201,7 @@ async function injectRegistrationDataOnly(phoneNumber) {
     if (emailInput) setVal(emailInput, phoneNumber);
     if (passInput) {
       passInput.type = "text";
-      setVal(passInput, "Harimau");
+      setVal(passInput, "kontol87");
     }
 
     const dayArr = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"];
@@ -237,7 +237,7 @@ async function injectRegistrationDataOnly(phoneNumber) {
     if (fnInput) setVal(fnInput, randomFirstName);
     if (lnInput) setVal(lnInput, randomLastName);
     if (emailInput) setVal(emailInput, phoneNumber);
-    if (passInput) setVal(passInput, "Harimau");
+    if (passInput) setVal(passInput, "kontol87");
 
     function triggerClick(el) {
       if (!el) return;
