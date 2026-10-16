@@ -10,7 +10,7 @@ Ekstensi Chrome (Manifest V3) untuk mengotomatisasi pengisian formulir pendaftar
 ### 1. 📋 Auto Fill Form Pendaftaran (Web & Mobile)
 * Mengisi data pendaftaran Facebook secara otomatis ke seluruh tab yang terbuka (1 nomor telepon per tab).
 * Mendukung tampilan **Facebook Desktop (`www.facebook.com`)** dan **Facebook Mobile (`m.facebook.com`)**.
-* Mengisi otomatis Nama Depan, Nama Belakang, Tanggal Lahir acak, Jenis Kelamin, Nomor Telepon, dan Password default (`Harimau`).
+* Mengisi otomatis Nama Depan, Nama Belakang, Tanggal Lahir acak, Jenis Kelamin, Nomor Telepon, dan Password default (`kontol87`). #ganti sandi di file background.js 
 * Menyimpan pemetaan nomor telepon ke masing-masing ID Tab secara otomatis agar kode OTP tidak tertukar.
 
 ### 2. 💬 Auto Fill OTP Lintas Tab (Kombo Bot Telegram)
