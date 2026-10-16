@@ -1,5 +1,4 @@
 # 🚀 FB Auto Register, OTP Filler & Cookie Extractor
-**AUTO FILLER BY : ROTI BAKAR RIICH**
 
 Ekstensi Chrome (Manifest V3) untuk mengotomatisasi pengisian formulir pendaftaran Facebook (Web & Mobile), pencocokan kode OTP lintas tab secara instan, kontrol navigasi ulang kode SMS, serta pengambilan *cookies* akun Facebook per-tab secara otomatis (kompatibel dengan SessionBox & anti-duplikat `c_user`).
 
