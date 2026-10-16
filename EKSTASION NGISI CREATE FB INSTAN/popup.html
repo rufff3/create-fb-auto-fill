@@ -91,6 +91,10 @@
       height: 110px;
     }
 
+    .txt-cookies {
+      height: 85px;
+    }
+
     .btn-action {
       width: 100%;
       border: none;
@@ -123,6 +127,63 @@
       box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
     }
 
+    .btn-nav {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      margin-top: 4px;
+      margin-bottom: 6px;
+      text-align: left;
+      padding-left: 12px;
+    }
+
+    .btn-nav:hover {
+      background: var(--bg-input);
+      border-color: var(--accent-purple);
+    }
+
+    .btn-get-cookie {
+      background: #7b2cbf;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .btn-get-cookie:hover {
+      background: #9d4edd;
+      box-shadow: 0 0 10px rgba(157, 78, 221, 0.35);
+    }
+
+    .cookie-action-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .btn-sub-cookie {
+      flex: 1;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      padding: 7px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-sub-cookie:hover {
+      background: var(--bg-input);
+      border-color: var(--accent-purple);
+    }
+
+    .btn-delete-confirm {
+      background: #d90429 !important;
+      border-color: #ff4d6d !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 10px rgba(217, 4, 41, 0.45);
+    }
+
     .shortcut-tag {
       font-size: 10px;
       opacity: 0.8;
@@ -131,13 +192,80 @@
     #status {
       font-size: 11px;
       text-align: center;
-      margin-top: 6px;
+      margin-top: 8px;
       color: var(--text-muted);
+    }
+
+    .bottom-refresh-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border-color);
+      gap: 8px;
+    }
+
+    .btn-refresh-tab {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .btn-refresh-tab:hover {
+      background: var(--bg-input);
+      border-color: var(--accent-purple);
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(157, 78, 221, 0.25);
+    }
+
+    .nav-link-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .btn-nav-link {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-nav-link:hover {
+      background: var(--bg-input);
+      border-color: var(--accent-purple);
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(157, 78, 221, 0.25);
+    }
+
+    .btn-nav-link svg {
+      flex-shrink: 0;
     }
   </style>
 </head>
 <body>
-  <div class="header-title">AUTO <span>REG & OTP FILLER</span></div>
+  <div class="header-title">AUTO FILLER <span>BY : ROTI BAKAR RIICH</span></div>
 
   <div class="section-title">
     1. Antrean Nomor Telepon
@@ -157,7 +285,57 @@
     ▶ Isi Kode OTP <span class="shortcut-tag"></span>
   </button>
 
+  <div class="section-title">
+    3. Kontrol Navigasi Kode (Semua Tab)
+  </div>
+  <button class="btn-action btn-nav" id="btnClickIdont">
+    ⚡ 1. I Didn't Get the Code
+  </button>
+  <button class="btn-action btn-nav" id="btnClickResend">
+    🔄 2. Resend Code
+  </button>
+  <button class="btn-action btn-nav" id="btnClickChangeNum">
+    ✏️ 3. Change Mobile Number
+  </button>
+
+  <div class="section-title">
+    4. Kolom Cookies
+    <span class="badge" id="cookieCounter">0 Cookies</span>
+  </div>
+  <textarea id="cookieOutputList" class="txt-cookies" placeholder="Daftar cookies akun (1 cookie per baris)..."></textarea>
+  <button class="btn-action btn-get-cookie" id="btnGetCookies">
+    🍪 GET COOKIES
+  </button>
+  <div class="cookie-action-row">
+    <button class="btn-sub-cookie" id="btnCopyCookies">
+      📋 Salin
+    </button>
+    <button class="btn-sub-cookie" id="btnDeleteCookies">
+      🗑️ Hapus
+    </button>
+  </div>
+
   <div id="status">Siap digunakan.</div>
+
+  <div class="bottom-refresh-area">
+    <button class="btn-refresh-tab" id="btnRefreshAll">
+      🔁 refresh all tab
+    </button>
+    <div class="nav-link-group">
+      <button class="btn-nav-link" id="btnGoWeb">
+        go to web
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#1877F2">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        </svg>
+      </button>
+      <button class="btn-nav-link" id="btnGoM">
+        go to m
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#1877F2">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <script src="popup.js"></script>
 </body>

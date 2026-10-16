@@ -26,6 +26,86 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
+// ================= LOGIKA COOKIE EXTRACTOR (TETAP SAMA) =================
+function sortFacebookCookies(cookieStr) {
+  const priorityOrder = ["datr", "wd", "dpr", "sb", "c_user", "fr", "xs"];
+  const cookiePairs = cookieStr.split(";").map(item => item.trim()).filter(Boolean);
+  const cookieMap = new Map();
+
+  for (const pair of cookiePairs) {
+    const splitIndex = pair.indexOf("=");
+    if (splitIndex !== -1) {
+      const key = pair.slice(0, splitIndex).trim();
+      const val = pair.slice(splitIndex + 1).trim();
+      cookieMap.set(key, val);
+    }
+  }
+
+  const sortedList = [];
+  for (const key of priorityOrder) {
+    if (cookieMap.has(key)) {
+      sortedList.push(`${key}=${cookieMap.get(key)}`);
+      cookieMap.delete(key);
+    }
+  }
+
+  for (const [key, val] of cookieMap.entries()) {
+    sortedList.push(`${key}=${val}`);
+  }
+
+  return sortedList.join("; ");
+}
+
+function deduplicateCookiesByCUser(cookieLines) {
+  const cookieByUid = new Map();
+
+  for (const rawLine of cookieLines) {
+    const line = (rawLine || "").trim();
+    if (!line) continue;
+
+    const uidMatch = line.match(/c_user=(\d+)/);
+    if (uidMatch && uidMatch[1]) {
+      const uid = uidMatch[1];
+      const formatted = sortFacebookCookies(line);
+      cookieByUid.set(uid, formatted);
+    }
+  }
+
+  return Array.from(cookieByUid.values());
+}
+
+chrome.webRequest.onSendHeaders.addListener(
+  (details) => {
+    if (details.tabId < 0 || !details.requestHeaders) return;
+
+    for (const header of details.requestHeaders) {
+      if (header.name.toLowerCase() === "cookie" && header.value) {
+        if (header.value.includes("c_user=")) {
+          const formattedCookie = sortFacebookCookies(header.value);
+          const dataToStore = {
+            [`tab_${details.tabId}`]: formattedCookie
+          };
+
+          const uidMatch = header.value.match(/c_user=(\d+)/);
+          if (uidMatch && uidMatch[1]) {
+            dataToStore[`cookie_${uidMatch[1]}`] = formattedCookie;
+          }
+
+          chrome.storage.local.set(dataToStore);
+        }
+        break;
+      }
+    }
+  },
+  { urls: ["*://*.facebook.com/*"] },
+  ["requestHeaders", "extraHeaders"]
+);
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.local.remove(`tab_${tabId}`);
+});
+
+// ================= MESSAGE LISTENER GABUNGAN =================
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (req.action === "RUN_PHONE_BATCH") {
     executePhoneBatch().then(sendResponse);
@@ -35,11 +115,139 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     executeOtpBatch().then(sendResponse);
     return true;
   }
+  if (req.action === "CLICK_IDONT_BATCH") {
+    executeActionBatch("idont").then(sendResponse);
+    return true;
+  }
+  if (req.action === "CLICK_RESEND_BATCH") {
+    executeActionBatch("resend").then(sendResponse);
+    return true;
+  }
+  if (req.action === "CLICK_CHANGE_NUM_BATCH") {
+    executeActionBatch("change_num").then(sendResponse);
+    return true;
+  }
+  if (req.action === "REFRESH_ALL_TABS") {
+    refreshAllTargetTabs().then(sendResponse);
+    return true;
+  }
+  if (req.action === "NAVIGATE_ALL_TABS") {
+    navigateAllTabs(req.url).then(sendResponse);
+    return true;
+  }
+  if (req.action === "GET_TAB_COOKIE") {
+    const tabId = sender.tab ? sender.tab.id : null;
+    if (tabId === null) {
+      sendResponse("");
+      return;
+    }
+
+    const tabKey = `tab_${tabId}`;
+    const uidKey = req.uid ? `cookie_${req.uid}` : null;
+    const searchKeys = uidKey ? [tabKey, uidKey] : [tabKey];
+
+    chrome.storage.local.get(searchKeys, (res) => {
+      const cookie = res[tabKey] || (uidKey ? res[uidKey] : "") || "";
+      sendResponse(cookie);
+    });
+
+    return true;
+  }
+  if (req.action === "GET_COOKIES_BATCH") {
+    executeGetCookiesBatch().then(sendResponse);
+    return true;
+  }
+  if (req.action === "CLEAR_COOKIES_DATA") {
+    clearSavedCookiesData().then(sendResponse);
+    return true;
+  }
 });
 
-// ==========================================================
-// 1. PENGISIAN FORM PENDAFTARAN PARALEL & INSTAN KE SEMUA TAB
-// ==========================================================
+// ================= FUNGSI GET COOKIES ANTI-DUPLIKAT (BY C_USER) =================
+let isGettingCookies = false;
+
+async function executeGetCookiesBatch() {
+  if (isGettingCookies) {
+    const currentData = await chrome.storage.local.get(["rawCookies"]);
+    const currentList = deduplicateCookiesByCUser((currentData.rawCookies || "").split("\n"));
+    return { total: currentList.length };
+  }
+
+  isGettingCookies = true;
+
+  try {
+    const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
+    const targetTabs = currentWindowTabs.filter(t =>
+      t.id && t.url && t.url.includes("facebook.com") && !t.url.startsWith("chrome://")
+    );
+
+    const tabUidMap = {};
+
+    if (targetTabs.length > 0) {
+      const triggerPromises = targetTabs.map(async (tab) => {
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              const html = document.documentElement.innerHTML;
+              const match = html.match(/"USER_ID"\s*:\s*"(\d+)"/) ||
+                            html.match(/"actorID"\s*:\s*"(\d+)"/) ||
+                            html.match(/"ACCOUNT_ID"\s*:\s*"(\d+)"/);
+              const pageUid = match ? match[1] : "";
+              fetch(window.location.href, { method: "HEAD", cache: "no-store" }).catch(() => {});
+              return pageUid;
+            }
+          });
+          if (results && results[0] && results[0].result) {
+            tabUidMap[tab.id] = results[0].result;
+          }
+        } catch (err) {
+          console.warn(`Gagal memicu cookie pada Tab ${tab.id}:`, err);
+        }
+      });
+
+      await Promise.all(triggerPromises);
+      await new Promise(res => setTimeout(res, 300));
+    }
+
+    const allStorage = await chrome.storage.local.get(null);
+    const existingRaw = allStorage.rawCookies || "";
+    const collectedLines = existingRaw.split("\n").map(l => l.trim()).filter(Boolean);
+
+    for (const tab of targetTabs) {
+      const tabKey = `tab_${tab.id}`;
+      const uid = tabUidMap[tab.id];
+      const uidKey = uid ? `cookie_${uid}` : null;
+      const cookie = (uidKey && allStorage[uidKey]) ? allStorage[uidKey] : (allStorage[tabKey] || "");
+
+      if (cookie && cookie.includes("c_user=")) {
+        collectedLines.push(cookie);
+      }
+    }
+
+    const uniqueCookies = deduplicateCookiesByCUser(collectedLines);
+    const newRawCookies = uniqueCookies.join("\n");
+
+    await chrome.storage.local.set({ rawCookies: newRawCookies });
+    return { total: uniqueCookies.length };
+  } finally {
+    isGettingCookies = false;
+  }
+}
+
+async function clearSavedCookiesData() {
+  const allStorage = await chrome.storage.local.get(null);
+  const keysToRemove = Object.keys(allStorage).filter(
+    k => k.startsWith("tab_") || k.startsWith("cookie_")
+  );
+  if (keysToRemove.length > 0) {
+    await chrome.storage.local.remove(keysToRemove);
+  }
+  await chrome.storage.local.set({ rawCookies: "" });
+  return { cleared: true };
+}
+
+// ================= LOGIKA UTAMA ASLI (TIDAK DIUBAH) =================
 async function executePhoneBatch() {
   const storage = await chrome.storage.local.get(["rawPhones", "tabPhoneMap"]);
   const rawPhones = storage.rawPhones || "";
@@ -63,11 +271,9 @@ async function executePhoneBatch() {
 
     const targetPhone = phoneList.shift();
     const cleanDigits = targetPhone.replace(/\D/g, "");
-    
-    // Simpan digit angka murni untuk sinkronisasi pemetaan OTP
+
     tabPhoneMap[tab.id] = cleanDigits;
 
-    // Nomor yang disuntikkan ke kolom input diawali dengan tanda +
     const phoneToInject = "+" + cleanDigits;
 
     const p = chrome.scripting.executeScript({
@@ -169,6 +375,16 @@ async function injectRegistrationDataOnly(phoneNumber) {
     el.dispatchEvent(new Event("blur", { bubbles: true }));
   }
 
+  const changeNumInput = document.querySelector(
+    'input[aria-label="Mobile Number" i], input[aria-label="Nomor Ponsel" i], input[aria-label="Nomor ponsel" i], input.wbloks_66, input[type="tel"].wbloks_1, input[type="tel"][class*="wbloks"]'
+  );
+  const hasRegForm = !!document.querySelector('input[name="firstname"], input[placeholder*="First" i]') || (!!document.getElementById("day") && !!document.getElementById("month"));
+
+  if (changeNumInput && !hasRegForm) {
+    setVal(changeNumInput, phoneNumber);
+    return;
+  }
+
   const isMobileFb = !!document.getElementById("day") && !!document.getElementById("month");
 
   if (isMobileFb) {
@@ -178,7 +394,7 @@ async function injectRegistrationDataOnly(phoneNumber) {
 
     const fnInput = document.querySelector('input[name="firstname"]');
     const lnInput = document.querySelector('input[name="lastname"]');
-    const emailInput = document.querySelector('input[name="reg_email__"]');
+    const emailInput = document.querySelector('input[name="reg_email__"], input[aria-label="Mobile Number" i], input[aria-label="Nomor Ponsel" i], input[aria-label="Nomor ponsel" i], input.wbloks_66');
     const passInput = document.querySelector('input[name="reg_passwd__"]');
 
     if (fnInput) setVal(fnInput, dnama[a] + " " + dnama[b] + " " + dnama[f]);
@@ -186,7 +402,7 @@ async function injectRegistrationDataOnly(phoneNumber) {
     if (emailInput) setVal(emailInput, phoneNumber);
     if (passInput) {
       passInput.type = "text";
-      setVal(passInput, "kontol87");
+      setVal(passInput, "Harimau");
     }
 
     const dayArr = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"];
@@ -216,19 +432,19 @@ async function injectRegistrationDataOnly(phoneNumber) {
     const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"])'));
     const fnInput = document.querySelector('input[name="firstname"], input[placeholder*="First" i]') || inputs[0];
     const lnInput = document.querySelector('input[name="lastname"], input[placeholder*="Surname" i]') || inputs[1];
-    const emailInput = document.querySelector('input[name="reg_email__"], input[aria-label="Mobile number"], input[placeholder*="Mobile" i], input[placeholder*="email" i]') || inputs[2];
+    const emailInput = document.querySelector('input[name="reg_email__"], input[aria-label="Mobile number" i], input[aria-label="Mobile Number" i], input[aria-label="Nomor Ponsel" i], input[aria-label="Nomor ponsel" i], input.wbloks_66, input[placeholder*="Mobile" i], input[placeholder*="email" i]') || inputs[2];
     const passInput = document.querySelector('input[name="reg_passwd__"], input[type="password"]') || inputs[3];
 
     if (fnInput) setVal(fnInput, randomFirstName);
     if (lnInput) setVal(lnInput, randomLastName);
     if (emailInput) setVal(emailInput, phoneNumber);
-    if (passInput) setVal(passInput, "kontol87");
+    if (passInput) setVal(passInput, "Harimau");
 
     function triggerClick(el) {
       if (!el) return;
       let target = el;
       for (let i = 0; i < 3 && target; i++) {
-        const rk = Object.keys(target).find(k => k.startsWith("__reactProps$") || k.startsWith("__reactEventHandlers$"));
+        const rk = Object.keys(target).find(k => k.startsWith("__reactProps") || k.startsWith("__reactEventHandlers"));
         if (rk && typeof target[rk]?.onClick === "function") {
           try { target[rk].onClick({ preventDefault: () => {}, stopPropagation: () => {}, target: el, currentTarget: target }); } catch(e) {}
         }
@@ -265,9 +481,6 @@ async function injectRegistrationDataOnly(phoneNumber) {
   }
 }
 
-// ==========================================================
-// 2. PENGISIAN KODE OTP SECARA SIMULTAN KE TAB SESUAI MAPPING
-// ==========================================================
 async function executeOtpBatch() {
   const storage = await chrome.storage.local.get(["rawOtps", "tabPhoneMap"]);
   const rawOtps = storage.rawOtps || "";
@@ -329,7 +542,7 @@ function injectOtpFillOnly(otpCode) {
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  let otpInput = document.querySelector('input[aria-label="Confirmation code"], input[maxlength="5"], input[maxlength="6"], input[autocomplete="one-time-code"]');
+  let otpInput = document.querySelector('input[aria-label="Confirmation code" i], input[aria-label="Kode konfirmasi" i], input[inputmode="numeric"].wbloks_66, input[inputmode="numeric"].wbloks_1, input[maxlength="5"], input[maxlength="6"], input[autocomplete="one-time-code"]');
 
   if (!otpInput) {
     const inputs = Array.from(document.querySelectorAll('input[type="text"], input[type="tel"]')).filter(i => {
@@ -340,7 +553,7 @@ function injectOtpFillOnly(otpCode) {
     otpInput = inputs.find(i => {
       const aria = (i.getAttribute("aria-label") || "").toLowerCase();
       const mode = (i.getAttribute("inputmode") || "").toLowerCase();
-      return aria.includes("confirmation") || aria.includes("code") || aria.includes("kode") || mode === "numeric";
+      return aria.includes("confirmation") || aria.includes("code") || aria.includes("kode") || aria.includes("konfirmasi") || mode === "numeric";
     }) || inputs[inputs.length - 1];
   }
 
@@ -348,4 +561,187 @@ function injectOtpFillOnly(otpCode) {
     otpInput.focus();
     setReactInputValue(otpInput, otpCode);
   }
+}
+
+async function executeActionBatch(actionType) {
+  const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
+  const targetTabs = currentWindowTabs.filter(t => 
+    t.id && t.url && t.url.includes("facebook.com") && !t.url.startsWith("chrome://")
+  );
+
+  if (targetTabs.length === 0) return;
+
+  const executionPromises = targetTabs.map(tab => {
+    return chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: injectClickAction,
+      args: [actionType]
+    }).catch(err => console.warn(`Gagal aksi pada Tab ${tab.id}:`, err));
+  });
+
+  await Promise.all(executionPromises);
+}
+
+function injectClickAction(actionType) {
+  function triggerClick(el) {
+    if (!el) return;
+
+    const target = el.closest('[role="button"], button, a') || el;
+
+    if (typeof target.focus === "function") {
+      try { target.focus(); } catch (e) {}
+    }
+
+    const evtOpts = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: window
+    };
+
+    target.dispatchEvent(new MouseEvent("pointerdown", evtOpts));
+    target.dispatchEvent(new MouseEvent("mousedown", evtOpts));
+    target.dispatchEvent(new MouseEvent("pointerup", evtOpts));
+    target.dispatchEvent(new MouseEvent("mouseup", evtOpts));
+
+    if (typeof target.click === "function") {
+      try {
+        target.click();
+      } catch (e) {
+        target.dispatchEvent(new MouseEvent("click", evtOpts));
+      }
+    } else {
+      target.dispatchEvent(new MouseEvent("click", evtOpts));
+    }
+  }
+
+  function findTargetButton(type) {
+    const clean = str => (str || "")
+      .toLowerCase()
+      .replace(/[\u2018\u2019\u0027\u0060\u00b4]/g, "")
+      .replace(/[\u00a0\s]+/g, " ")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    let rawPatterns = [];
+    if (type === "idont") {
+      rawPatterns = [
+        "didnt get the code",
+        "didnt receive the code",
+        "did not get the code",
+        "did not receive the code",
+        "didnt get code",
+        "didnt receive code",
+        "tidak menerima kode",
+        "belum menerima kode",
+        "tidak dapat kode",
+        "belum dapat kode",
+        "saya tidak menerima kode",
+        "saya tidak mendapatkan kode",
+        "tidak mendapatkan kode"
+      ];
+    } else if (type === "resend") {
+      rawPatterns = [
+        "resend confirmation code",
+        "resend code to sms",
+        "resend code",
+        "kirim ulang kode konfirmasi",
+        "kirim ulang kode ke sms",
+        "kirim ulang kode",
+        "kirim ulang sms"
+      ];
+    } else if (type === "change_num") {
+      rawPatterns = [
+        "change mobile number or email address",
+        "change mobile number",
+        "change number",
+        "ubah nomor ponsel",
+        "ubah nomor telepon",
+        "ubah nomor",
+        "ganti nomor telepon",
+        "ganti nomor ponsel",
+        "ganti nomor"
+      ];
+    }
+
+    const cleanPatterns = rawPatterns.map(p => clean(p));
+
+    const ariaElements = Array.from(document.querySelectorAll('[aria-label]'));
+    for (const el of ariaElements) {
+      const ariaText = clean(el.getAttribute("aria-label"));
+      if (cleanPatterns.some(p => ariaText.includes(p))) {
+        return el.closest('[role="button"], button, a') || el;
+      }
+    }
+
+    const clickableElements = Array.from(document.querySelectorAll('[role="button"], button, a, [tabindex="0"]'));
+    const directMatches = clickableElements.filter(btn => {
+      const btnText = clean(btn.innerText || btn.textContent);
+      return cleanPatterns.some(p => btnText.includes(p));
+    });
+
+    if (directMatches.length > 0) {
+      directMatches.sort((a, b) => {
+        const aLen = clean(a.innerText || a.textContent).length;
+        const bLen = clean(b.innerText || b.textContent).length;
+        return aLen - bLen;
+      });
+      return directMatches[0];
+    }
+
+    const textLeaves = Array.from(document.querySelectorAll('span, div, p')).filter(el => {
+      if (el.children.length > 2) return false;
+      const txt = clean(el.innerText || el.textContent);
+      if (!txt) return false;
+      return cleanPatterns.some(p => txt.includes(p));
+    });
+
+    if (textLeaves.length > 0) {
+      textLeaves.sort((a, b) => {
+        const aLen = clean(a.innerText || a.textContent).length;
+        const bLen = clean(b.innerText || b.textContent).length;
+        return aLen - bLen;
+      });
+      const bestLeaf = textLeaves[0];
+      return bestLeaf.closest('[role="button"], button, a') || bestLeaf;
+    }
+
+    return null;
+  }
+
+  const targetBtn = findTargetButton(actionType);
+  if (targetBtn) {
+    triggerClick(targetBtn);
+  }
+}
+
+async function refreshAllTargetTabs() {
+  const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
+  const targetTabs = currentWindowTabs.filter(t => 
+    t.id && t.url && t.url.includes("facebook.com") && !t.url.startsWith("chrome://")
+  );
+
+  if (targetTabs.length === 0) return;
+
+  const reloadPromises = targetTabs.map(tab => {
+    return chrome.tabs.reload(tab.id).catch(err => console.warn(`Gagal refresh Tab ${tab.id}:`, err));
+  });
+
+  await Promise.all(reloadPromises);
+}
+
+async function navigateAllTabs(targetUrl) {
+  const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
+  const targetTabs = currentWindowTabs.filter(t => 
+    t.id && (!t.url || (!t.url.startsWith("chrome://") && !t.url.startsWith("chrome-extension://") && !t.url.startsWith("devtools://")))
+  );
+
+  if (targetTabs.length === 0) return;
+
+  const navPromises = targetTabs.map(tab => {
+    return chrome.tabs.update(tab.id, { url: targetUrl }).catch(err => console.warn(`Gagal alihkan Tab ${tab.id}:`, err));
+  });
+
+  await Promise.all(navPromises);
 }
