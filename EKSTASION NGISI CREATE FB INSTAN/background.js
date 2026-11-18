@@ -247,7 +247,7 @@ async function clearSavedCookiesData() {
   return { cleared: true };
 }
 
-// ================= LOGIKA UTAMA ASLI (TIDAK DIUBAH) =================
+// ================= LOGIKA UTAMA =================
 async function executePhoneBatch() {
   const storage = await chrome.storage.local.get(["rawPhones", "tabPhoneMap"]);
   const rawPhones = storage.rawPhones || "";
@@ -375,10 +375,90 @@ async function injectRegistrationDataOnly(phoneNumber) {
     el.dispatchEvent(new Event("blur", { bubbles: true }));
   }
 
-  const changeNumInput = document.querySelector(
-    'input[aria-label="Mobile Number" i], input[aria-label="Nomor Ponsel" i], input[aria-label="Nomor ponsel" i], input.wbloks_66, input[type="tel"].wbloks_1, input[type="tel"][class*="wbloks"]'
-  );
-  const hasRegForm = !!document.querySelector('input[name="firstname"], input[placeholder*="First" i]') || (!!document.getElementById("day") && !!document.getElementById("month"));
+  const hasRegForm =
+    !!document.querySelector('input[name="firstname"], input[name="lastname"], input[name="reg_email__"], input[name="reg_passwd__"], input[placeholder*="First" i], [aria-label="Select day"]') ||
+    (!!document.getElementById("day") && !!document.getElementById("month"));
+
+  function findChangeNumInput() {
+    // 1. Selector bawaan & variasi aria-label
+    const directMatch = document.querySelector(
+      'input[aria-label="Mobile Number" i], input[aria-label="Nomor Ponsel" i], input[aria-label="Nomor ponsel" i], input[aria-label*="email or mobile" i], input[aria-label*="mobile number" i], input[aria-label*="nomor ponsel" i], input[aria-label*="nomor telepon" i], input.wbloks_66, input[type="tel"].wbloks_1, input[type="tel"][class*="wbloks"]'
+    );
+    if (directMatch) return directMatch;
+
+    const isVisibleTextInput = (el) => {
+      if (!el) return false;
+      const type = (el.getAttribute("type") || "text").toLowerCase();
+      if (["hidden", "password", "search", "checkbox", "radio", "submit", "button", "file"].includes(type)) return false;
+      if (el.disabled || el.readOnly) return false;
+      const mode = (el.getAttribute("inputmode") || "").toLowerCase();
+      const maxLen = el.getAttribute("maxlength");
+      const autoComp = (el.getAttribute("autocomplete") || "").toLowerCase();
+      if (mode === "numeric" || maxLen === "5" || maxLen === "6" || autoComp === "one-time-code") return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+
+    const visibleInputs = Array.from(document.querySelectorAll("input")).filter(isVisibleTextInput);
+    if (visibleInputs.length === 0) return null;
+
+    const labelPatterns = [
+      "email or mobile number",
+      "mobile number",
+      "new email or mobile",
+      "add new email",
+      "change mobile number",
+      "change number",
+      "email atau nomor ponsel",
+      "nomor ponsel",
+      "nomor telepon",
+      "ubah nomor",
+      "ganti nomor"
+    ];
+
+    // 2. Deteksi via <label for="..."> atau teks label di container pembungkus input (seperti id="_r_4_")
+    for (const inp of visibleInputs) {
+      if (inp.id) {
+        const linkedLabel = document.querySelector(`label[for="${CSS.escape(inp.id)}"]`);
+        if (linkedLabel) {
+          const lblTxt = (linkedLabel.innerText || linkedLabel.textContent || "").toLowerCase();
+          if (labelPatterns.some(p => lblTxt.includes(p))) return inp;
+        }
+      }
+
+      let parent = inp.parentElement;
+      for (let i = 0; i < 4 && parent; i++) {
+        const parentTxt = (parent.innerText || parent.textContent || "").toLowerCase();
+        if (labelPatterns.some(p => parentTxt.includes(p))) return inp;
+        parent = parent.parentElement;
+      }
+    }
+
+    // 3. Deteksi jika berada di dalam popup/modal [role="dialog"]
+    const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
+    for (const dlg of dialogs) {
+      const dlgTxt = (dlg.innerText || dlg.textContent || "").toLowerCase();
+      const dlgInputs = Array.from(dlg.querySelectorAll("input")).filter(isVisibleTextInput);
+      if (dlgInputs.length > 0 && labelPatterns.some(p => dlgTxt.includes(p))) {
+        return dlgInputs[0];
+      }
+      if (dlgInputs.length === 1 && !dlg.querySelector('input[type="password"]')) {
+        return dlgInputs[0];
+      }
+    }
+
+    // 4. Fallback jaga-jaga jika bahasa/label berubah ("buta"): bukan form reg, bukan login, bukan OTP
+    const hasPasswordOrOtp = !!document.querySelector('input[type="password"], input[name="pass"], input[autocomplete="one-time-code"], input[maxlength="5"], input[maxlength="6"]');
+    if (!hasPasswordOrOtp) {
+      const autoLogInput = visibleInputs.find(el => el.hasAttribute("data-auto-logging-id"));
+      if (autoLogInput) return autoLogInput;
+      if (visibleInputs.length === 1) return visibleInputs[0];
+    }
+
+    return null;
+  }
+
+  const changeNumInput = !hasRegForm ? findChangeNumInput() : null;
 
   if (changeNumInput && !hasRegForm) {
     setVal(changeNumInput, phoneNumber);
@@ -402,7 +482,7 @@ async function injectRegistrationDataOnly(phoneNumber) {
     if (emailInput) setVal(emailInput, phoneNumber);
     if (passInput) {
       passInput.type = "text";
-      setVal(passInput, "kontol87");
+      setVal(passInput, "Harimau");
     }
 
     const dayArr = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"];
@@ -438,7 +518,7 @@ async function injectRegistrationDataOnly(phoneNumber) {
     if (fnInput) setVal(fnInput, randomFirstName);
     if (lnInput) setVal(lnInput, randomLastName);
     if (emailInput) setVal(emailInput, phoneNumber);
-    if (passInput) setVal(passInput, "kontol87");
+    if (passInput) setVal(passInput, "Harimau");
 
     function triggerClick(el) {
       if (!el) return;
